@@ -32,7 +32,7 @@ def main(meta_data_dir='/data/meta_data'):
     virus_source_mapper = {
         'Upenn core': 'UPenn',
         'Upenn Core': 'UPenn',
-        'UPenn': 'Upenn'
+        'UPenn': 'UPenn'
     }
 
     # ---- brain location mapper ----
@@ -76,6 +76,7 @@ def main(meta_data_dir='/data/meta_data'):
         animal_source = (meta_data.animalSource[0]
                          if isinstance(meta_data.animalSource, (np.ndarray, list)) else meta_data.animalSource)
         subject_key = dict(subject_id=int(re.search('\d+', animal_id).group()),
+                           subject_nickname=re.search('meta_(an\d+)_', meta_data_file.stem).group(1),
                            sex=meta_data.sex[0].upper() if len(meta_data.sex) != 0 else 'U',
                            species=meta_data.species,
                            animal_source=animal_source)
@@ -99,7 +100,15 @@ def main(meta_data_dir='/data/meta_data'):
         session_key = dict(subject_key, username=person_key['username'],
                            session=len(experiment.Session & subject_key) + 1,
                            session_date=parse_date(meta_data.dateOfExperiment))
+        filename = meta_data_file.stem
+        if re.search('fv(\d+)', filename):
+            session_key.update(fov=int(re.search('fv(\d+)', filename).group(1)))
+
         experiment.Session.insert1(session_key, ignore_extra_fields=True)
+
+        experiment.Session.ImagingDepth.insert1(
+            dict(session_key, imaging_depth=int(re.search('_(\d+)(_fv|$)', filename).group(1))),
+            ignore_extra_fields=True)
 
         print(f'\tInsert Session - {session_key["subject_id"]} - {session_key["session_date"]}')
 

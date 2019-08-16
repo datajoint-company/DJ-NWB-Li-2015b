@@ -1,5 +1,6 @@
 import datajoint as dj
 from . import get_schema_name
+from . import experiment
 
 schema = dj.schema(get_schema_name('imaging'))
 
@@ -29,9 +30,8 @@ class Scan(dj.Imported):
     ---
     image_gcamp:       longblob # 512 x 512, a summary image of GCaMP at 940nm, obj-images-value1
     image_ctb:         longblob # 512 x 512, a summary image of CTB-647, obj-images-value2
-    image_beads:       longblob # 512 x 512, a summary image of Beads, obj-images-value3
-    recording_depth:   float    # obj-timeSeriesArrayHash-value{1, 2}-depth
-    frame_time:        longblob # obj-timeSeriesArrayHash-value{1, 1}-time, aligned to the first trial start
+    image_beads=null:  longblob # 512 x 512, a summary image of Beads, obj-images-value3
+    frame_time:        longblob # obj-timeSeriesArrayHash-value(1, 1)-time, aligned to the first trial start
     """
 
     class Roi(dj.Part):
@@ -40,8 +40,10 @@ class Scan(dj.Imported):
         roi_idx:   int
         ---
         -> CellType
-        roi_trace:      longblob        # average fluorescence of roi obj-timeSeriesArrayHash-value{1, 1}-valueMatrix
-        neuropil_trace: longblob        # average fluorescence of neuopil surounding each ROI, obj-timeSeriesArrayHash-value{1, 1}-valueMatrix
+        roi_trace:          longblob        # average fluorescence of roi obj-timeSeriesArrayHash-value(1, 1)-valueMatrix
+        neuropil_trace:     longblob        # average fluorescence of neuopil surounding each ROI, obj-timeSeriesArrayHash-value(1, 1)-valueMatrix
+        roi_pixel_list:     longblob        # pixel list of this roi
+        neuropil_pixel_list:longblob        # pixel list of the neuropil surrounding the roi
         """
 
 @schema
@@ -50,5 +52,7 @@ class TrialTrace(dj.Imported):
     -> Scan.Roi
     -> experiment.SessionTrial
     ---
-    trial_calcium_trace:   longblob  # trial cut using obj-timeSeriesArrayHash-value{1, 1}-trial
+    original_time:      longblob  # original time cut for this trial
+    aligned_time:       longblob  # 0 is go cue time
+    aligned_trace:      longblob  # aligned trace relative to the go cue time
     """

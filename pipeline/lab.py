@@ -60,6 +60,7 @@ class Subject(dj.Manual):
     definition = """
     subject_id          : int   # institution 6 digit animal ID
     ---
+    subject_nickname    : varchar(32)  # name used in the filename
     -> [nullable] Person        # person responsible for the animal
     cage_number=null    : int   # institution 6 digit animal ID
     date_of_birth=null  : date  # format: yyyy-mm-dd
@@ -127,30 +128,6 @@ class Serotype(dj.Manual):
 
 
 @schema
-class Virus(dj.Manual):
-    definition = """
-    virus_id : int unsigned
-    ---
-    -> VirusSource
-    -> Serotype
-    -> Person
-    virus_name      : varchar(256)
-    titer           : Decimal(20,1) #
-    order_date      : date
-    remarks         : varchar(256)
-    """
-
-    class Notes(dj.Part):
-        definition = """
-        # Notes for virus
-        -> Virus
-        note_id     : int
-        ---
-        note        : varchar(256)
-        """
-
-
-@schema
 class SkullReference(dj.Lookup):
     definition = """
     skull_reference   : varchar(60)
@@ -194,21 +171,21 @@ class Surgery(dj.Manual):
     surgery_description : varchar(256)
     """
     # TODO: confirm location pos/neg convention (contradict with 'BrainLocation' used photostim and ephys)
-    class VirusInjection(dj.Part):
-        definition = """
-        # Virus injections
-        -> master
-        injection_id : int
-        ---
-        -> Virus
-        -> SkullReference
-        ml_location     : Decimal(8,3) # um from ref left is positive
-        ap_location     : Decimal(8,3) # um from ref anterior is positive
-        dv_location     : Decimal(8,3) # um from dura dorsal is positive
-        volume          : Decimal(10,3) # in nl
-        dilution        : Decimal (10, 2) # 1 to how much
-        description     : varchar(256)
-        """
+    # class VirusInjection(dj.Part):
+    #     definition = """
+    #     # Virus injections
+    #     -> master
+    #     injection_id : int
+    #     ---
+    #     -> Virus
+    #     -> SkullReference
+    #     ml_location     : Decimal(8,3) # um from ref left is positive
+    #     ap_location     : Decimal(8,3) # um from ref anterior is positive
+    #     dv_location     : Decimal(8,3) # um from dura dorsal is positive
+    #     volume          : Decimal(10,3) # in nl
+    #     dilution        : Decimal (10, 2) # 1 to how much
+    #     description     : varchar(256)
+    #     """
 
     class Procedure(dj.Part):
         definition = """

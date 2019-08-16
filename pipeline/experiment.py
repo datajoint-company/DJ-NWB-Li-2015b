@@ -21,12 +21,21 @@ class BrainLocation(dj.Manual):
 class Session(dj.Manual):
     definition = """
     -> lab.Subject
-    session : smallint 		# session number
+    session         : smallint 		# session number
     ---
-    session_date  : date
+    session_date    : date
+    fov = 1         : tinyint       # field of view number
     -> lab.Person
     -> [nullable] lab.Rig
     """
+
+    class ImagingDepth(dj.Part):
+        definition = """
+        # table for imaging depth
+        -> master
+        ---
+        imaging_depth:    int   # depth of imaging plane, in um
+        """
 
 
 @schema
