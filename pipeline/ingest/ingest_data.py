@@ -19,7 +19,7 @@ def main(data_dir='/data/data_structure'):
 
     # ==================== DEFINE CONSTANTS =====================
 
-    trial_type_str = ['HitR', 'HitL', 'ErrR', 'ErrL', 'NoLickR', 'NoLickL']
+    trial_type_str = ['HitL', 'HitR', 'ErrL', 'ErrR', 'NoLickL', 'NoLickR']
     trial_type_mapper = {'HitR': ('hit', 'right'),
                          'HitL': ('hit', 'left'),
                          'ErrR': ('miss', 'right'),
@@ -70,13 +70,12 @@ def main(data_dir='/data/data_structure'):
                 sess_data.trialTypeMat[:6, :].T,
                 sess_data.trialPropertiesHash.value[0],
                 sess_data.trialPropertiesHash.value[1],
-                sess_data.trialPropertiesHash.value[2],
-                sess_data.trialPropertiesHash.value[-1])
+                sess_data.trialPropertiesHash.value[2])
 
         print('---- Ingesting trial data ----')
         (session_trials, behavior_trials, trial_events) = [], [], []
 
-        for (tr_id, tr_start, trial_type_mtx, is_early_lick,
+        for (tr_id, tr_start, trial_type_mtx,
             sample_start, delay_start, response_start) in tqdm(trial_zip):
 
             tkey = dict(session_key, trial=tr_id,
@@ -93,7 +92,7 @@ def main(data_dir='/data/data_structure'):
             bkey = dict(tkey, **task_protocol,
                         trial_instruction=trial_instruction,
                         outcome=outcome,
-                        early_lick='early' if is_early_lick else 'no early')
+                        early_lick='no early')
             behavior_trials.append(bkey)
 
             for etype, etime in zip(('sample', 'delay', 'go'), (sample_start, delay_start, response_start)):
@@ -121,7 +120,8 @@ def main(data_dir='/data/data_structure'):
                 roi_trace=roi_trace,
                 neuropil_trace=neuropil_trace,
                 roi_pixel_list=roi_plist,
-                neuropil_pixel_list=neuropil_plist)
+                neuropil_pixel_list=neuropil_plist,
+                inc=bool(np.mean(roi_trace)/np.mean(neuropil_trace)>1.05))
                 for (idx, cell_type, roi_trace, neuropil_trace, roi_plist, neuropil_plist) in
                     zip(sess_data.timeSeriesArrayHash.value[0].ids, cell_type_vec,
                         sess_data.timeSeriesArrayHash.value[0].valueMatrix,
@@ -145,12 +145,13 @@ def main(data_dir='/data/data_structure'):
                                     sess_data.timeSeriesArrayHash.value[0].valueMatrix)):
             for tr in set(trials):
                 if tr in tr_events:
-                    go_cue_time = sum(tr_events[2])
+                    go_cue_time = sum(tr_events[tr])
                     go_id = np.abs(frame_time-go_cue_time).argmin()
                     trial_traces += [dict(**scan, roi_idx=roi_id, trial=tr,
-                                        original_time=frame_time[go_id-50:go_id+50],
-                                        aligned_time=frame_time[go_id-50:go_id+50]-go_cue_time,
-                                        aligned_trace=trace[go_id-50:go_id+50])]
+                                          original_time=frame_time[go_id-45:go_id+45],
+                                          aligned_time=frame_time[go_id-45:go_id+45]-go_cue_time,
+                                          aligned_trace=trace[go_id-45:go_id+45],
+                                          dff=(trace[go_id-45:go_id+45] - np.mean(trace[go_id-45:go_id-39]))/np.mean(trace[go_id-45:go_id-39]))]
 
         imaging.TrialTrace.insert(trial_traces, **insert_kwargs)
 
