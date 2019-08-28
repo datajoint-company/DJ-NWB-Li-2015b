@@ -77,7 +77,7 @@ class RoiAnalyses(dj.Computed):
     selectivity:    enum('Contra', 'Ipsi', 'Non selective')  # contra or ipsi
     p_responsive_l: float       # p value for task relevance in left trials
     p_responsive_r: float       # p value for task relevance in right trials
-    is_reponsive:   bool        # whether isresponsive to left/right trials, True if either responsive to left or right
+    is_responsive:  bool        # whether is responsive to left/right trials, True if either responsive to left or right
     mean_amp:       float       # peak amplitude of mean activity
     frame_peak:     int         # frame number for the peak activity
     frame_rise_half:int         # frame number of the half peak activity
