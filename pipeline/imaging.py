@@ -58,7 +58,7 @@ class TrialTrace(dj.Imported):
     original_time:      longblob  # original time cut for this trial
     aligned_time:       longblob  # 0 is go cue time
     aligned_trace:      longblob  # aligned trace relative to the go cue time
-    dff:                longblob  # dff, normalized with f[0:6]
+    dff:                longblob  # dff, normalized with f[0:5]
     """
 
 
@@ -168,3 +168,38 @@ class RoiAnalyses(dj.Computed):
             )
 
         self.insert(roi_info)
+
+
+@schema
+class PreferenceMap(dj.Computed):
+    definition = """
+    -> Scan
+    ---
+    preference_map:         longblob    # 512 x 512 x 3 matrix of RGB
+    """
+
+    def make(self, key):
+        im = np.ones([512, 512, 3])
+
+        # mark the non-selective cells
+        pl_non_sel = (Scan.Roi & key &
+                     (RoiAnalyses & 'selectivity="Non selective"')).fetch('roi_pixel_list')
+        if len(pl_non_sel):
+            pl_non_sel = np.unravel_index(np.hstack(pl_non_sel), [512, 512])
+            im[pl_non_sel[0], pl_non_sel[1], :] = 211/255
+
+        # mark the contra-selective cells
+        pl_contra = (Scan.Roi & key &
+                     (RoiAnalyses & 'selectivity="Contra"')).fetch('roi_pixel_list')
+        if len(pl_contra):
+            pl_contra = np.unravel_index(np.hstack(pl_contra), [512, 512])
+            im[pl_contra[0], pl_contra[1], :] = np.array([0, 0, 1])
+
+        # mark the ipsi-selective cells
+        pl_ipsi = (Scan.Roi & key &
+                   (RoiAnalyses & 'selectivity="Ipsi"')).fetch('roi_pixel_list')
+        if len(pl_ipsi):
+            pl_ipsi = np.unravel_index(np.hstack(pl_ipsi), [512, 512])
+            im[pl_ipsi[0], pl_ipsi[1], :] = np.array([1, 0, 0])
+
+        self.insert1(dict(**key, preference_map=im))

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os, sys
+import collections
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from datetime import datetime
@@ -61,10 +62,17 @@ def export_to_nwb(session_key, nwb_output_dir=default_nwb_output_dir, save=False
 
     # ---- Structural Images ----------
 
-    # gcamp = pynwb.image.GrayscaleImage('GCaMP at 940nm', scan['image_gcamp'])
-    # ctb = pynwb.image.RGBImage('CTB-647 IT', scan['image_ctb'])
-    # beads = pynwb.image.GrayscaleImage('Beads PT', scan['image_beads'])
+    gcamp = pynwb.image.GrayscaleImage('GCaMP at 940nm', scan['image_gcamp'])
+    ctb = pynwb.image.RGBImage('CTB-647 IT', scan['image_ctb'])
+    if isinstance(scan['image_beads'], collections.Sequence):
+        beads = pynwb.image.GrayscaleImage('Beads PT', scan['image_beads'])
+        images.add_image(beads)
 
+    images = pynwb.base.Images('images')
+    images.add_image(gcamp)
+    images.add_image(ctb)
+
+    nwbfile.add_acquisition(images)
 
     imaging_plane = nwbfile.create_imaging_plane(
         name='Imaging plane',
