@@ -1,4 +1,4 @@
-from pipeline.ingest import ingest_meta_data, ingest_data
+from pipeline.ingest import ingest_lookup, ingest_meta_data, ingest_data
 from pipeline import imaging
 
 ingest_meta_data.main()
