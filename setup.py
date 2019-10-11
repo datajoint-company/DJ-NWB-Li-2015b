@@ -11,6 +11,5 @@ setup(
     author='Vathes',
     author_email='support@vathes.com',
     packages=find_packages(exclude=[]),
-    install_requires=['datajoint>=0.12.dev4'],
-    scripts=['scripts/li2015b-shell.py'],
+    install_requires=['datajoint>=0.12.dev7'],
 )

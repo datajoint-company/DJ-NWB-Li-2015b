@@ -35,12 +35,17 @@ def export_to_nwb(session_key, nwb_output_dir=default_nwb_output_dir, save=False
         [str(this_session['subject_id']),
          this_session['session_date'].strftime('%Y-%m-%d'),
          str(this_session['session'])])
-    nwbfile = NWBFile(identifier=file_name,
+    nwbfile = NWBFile(
+        identifier=file_name,
+        related_publications='https://doi.org/10.1038/nature14178',
+        experiment_description='Two-photon experiment recorded in ALM',
         session_description='Imaging session',
         session_start_time=datetime.combine(this_session['session_date'], zero_zero_time),
         file_create_date=datetime.now(tzlocal()),
         experimenter=this_session['username'],
-        institution=institution)
+        institution=institution,
+        keywords=['motor planning', 'motor movement', 'anterior lateral cortex',
+                  'ALM', 'Two-photon imaging'])
     # -- subject
     subj = (lab.Subject & session_key).fetch1()
     nwbfile.subject = pynwb.file.Subject(
