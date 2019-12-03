@@ -66,65 +66,55 @@ def export_to_nwb(session_key, nwb_output_dir=default_nwb_output_dir, save=False
     scan = (imaging.Scan & session_key).fetch1()
 
     # ---- Structural Images ----------
-
+    images = pynwb.base.Images(name='images', description='Structural images of a scanning')
     gcamp = pynwb.image.GrayscaleImage('GCaMP at 940nm', scan['image_gcamp'])
     ctb = pynwb.image.RGBImage('CTB-647 IT', scan['image_ctb'])
-    if isinstance(scan['image_beads'], collections.Sequence):
-        beads = pynwb.image.GrayscaleImage('Beads PT', scan['image_beads'])
+    if isinstance(scan['image_beads'], np.ndarray):
+        beads = pynwb.image.RGBImage('Beads PT', scan['image_beads'])
         images.add_image(beads)
 
-    images = pynwb.base.Images('images')
     images.add_image(gcamp)
     images.add_image(ctb)
 
     nwbfile.add_acquisition(images)
 
+    time_stamps = scan['frame_time']
+    starting_time = time_stamps[0]
+    rate = 1/np.median(np.diff(time_stamps))
+
     imaging_plane = nwbfile.create_imaging_plane(
-        name='Imaging plane',
+        name='ImagingPlane',
         optical_channel=pynwb.ophys.OpticalChannel(
             name='green', description='green channel', emission_lambda=500.),
         description='Imaging session for PT and IT neurons during audio delay task',
         device=nwbfile.create_device(name='two-photon microscope with Thorlabs resonant galvo scannner'),
         excitation_lambda=940.,
-        imaging_rate=300.,
+        imaging_rate=rate,
         indicator='GCaMP6s',
         location='ALM',
         conversion=1e-6,
         unit='micrometers')
 
-    # ---- Frame Time information -----
-
-    frame_time = pynwb.image.TimeSeries(
-        name='Frame Time',
-        data=list(range(0, len(scan['frame_time']))),
-        unit='a.u',
-        timestamps=scan['frame_time']
-        )
-    nwbfile.add_acquisition(frame_time)
-
     # ----- Segementation information -----
     # link the imaging segmentation to the nwb file
-    ophys = nwbfile.create_processing_module('Ophys', 'Processing result of imaging')
+    ophys = nwbfile.create_processing_module('ophys', 'Processing result of imaging')
     img_seg = pynwb.ophys.ImageSegmentation()
-    ophys.add_data_interface(img_seg)
+    ophys.add(img_seg)
 
-    pln_seg = pynwb.ophys.PlaneSegmentation(
-        name='Plane Segmentation',
-        description='plane segmentation',
-        imaging_plane=imaging_plane)
+    pln_seg = img_seg.create_plane_segmentation(
+    name='PlaneSegmentation',
+    description='output from segmenting the current imaging plane',
+    imaging_plane=imaging_plane)
 
-    img_seg.add_plane_segmentation([pln_seg])
-
+    roi_fluorescence = pynwb.ophys.Fluorescence()
+    ophys.add(roi_fluorescence)
 
     # insert ROI mask
     rois = (imaging.Scan.Roi & session_key).fetch(as_dict=True)
 
     for k, v in dict(
-        roi_id='roi id',
         cell_type='PT, IT, or unknown',
         neuropil_mask='mask of neurophil surrounding this roi',
-        roi_trace='Trace on this session of this roi',
-        neuropil_trace='Trace on this session of the neurophil',
         included='whether to include this roi into later analyses'
         ).items():
         pln_seg.add_column(name=k, description=v)
@@ -135,14 +125,28 @@ def export_to_nwb(session_key, nwb_output_dir=default_nwb_output_dir, save=False
         mask[np.unravel_index(roi['roi_pixel_list']-1, mask.shape, 'F')] = 1
         neuropil_mask = np.zeros([512, 512])
         neuropil_mask[np.unravel_index(roi['neuropil_pixel_list']-1, mask.shape, 'F')] = 1
+
         pln_seg.add_roi(
-            roi_id=roi['roi_idx'],
-            image_mask=mask,
-            neuropil_mask=neuropil_mask,
-            cell_type=roi['cell_type'],
-            roi_trace=roi['roi_trace'],
-            neuropil_trace=roi['roi_trace'],
-            included=roi['inc'])
+            image_mask=mask.astype(bool),
+            neuropil_mask=neuropil_mask.astype(bool),
+            cell_type='unknown' if roi['cell_type']=='N/A' else roi['cell_type'],
+            included=bool(roi['inc']))
+
+        roi_region = pln_seg.create_roi_table_region(
+            name='roi_{}'.format(roi['roi_idx']),
+            description='table region for rois in this segmentation',
+            region=[roi['roi_idx']-1])
+
+        roi_fluorescence.create_roi_response_series(
+            name='roi_{:03}_trace'.format(roi['roi_idx']),
+            data=roi['roi_trace'],
+            description='average fluorescence of roi',
+            rois=roi_region, starting_time=starting_time, rate=rate)
+        roi_fluorescence.create_roi_response_series(
+            name='neurophil_{:03}_trace'.format(roi['roi_idx']),
+            data=roi['neuropil_trace'],
+            description='average fluorescence of the neuropil surrounding the roi',
+            rois=roi_region, starting_time=starting_time, rate=rate)
 
     # ===============================================================================
     # =============================== BEHAVIOR TRIALS ===============================
@@ -154,7 +158,7 @@ def export_to_nwb(session_key, nwb_output_dir=default_nwb_output_dir, save=False
     # and column description)
 
     dj_trial = experiment.SessionTrial * experiment.BehaviorTrial
-    skip_adding_columns = experiment.Session.primary_key + ['trial_uid']
+    skip_adding_columns = experiment.Session.primary_key + ['trial_uid', 'trial']
 
     if experiment.SessionTrial & session_key:
         # Get trial descriptors from TrialSet.Trial and TrialStimInfo
@@ -172,6 +176,7 @@ def export_to_nwb(session_key, nwb_output_dir=default_nwb_output_dir, save=False
         for trial in (dj_trial & session_key).fetch(as_dict=True):
             trial['start_time'] = float(trial['start_time'])
             trial['stop_time'] = float(trial['stop_time']) if trial['stop_time'] else 5.0
+            trial['early_lick'] = True if trial['early_lick'] == 'early' else False
             [trial.pop(k) for k in skip_adding_columns]
             nwbfile.add_trial(**trial)
 
@@ -179,18 +184,30 @@ def export_to_nwb(session_key, nwb_output_dir=default_nwb_output_dir, save=False
     # =============================== BEHAVIOR TRIAL EVENTS ==========================
     # ===============================================================================
 
+    behavior = nwbfile.create_processing_module(
+        'behavior', 'Time of behavioral events in this session')
     behav_event = pynwb.behavior.BehavioralEvents(name='BehavioralEvents')
-    nwbfile.add_acquisition(behav_event)
+    behavior.add_data_interface(behav_event)
 
     for trial_event_type in (experiment.TrialEventType & experiment.TrialEvent & session_key).fetch('trial_event_type'):
         event_times, trial_starts = (experiment.TrialEvent * experiment.SessionTrial
                                      & session_key & {'trial_event_type': trial_event_type}).fetch(
             'trial_event_time', 'start_time')
+
+        if trial_event_type == 'sample':
+            description = 'Time stamps of the beginning of the sampling period on each trial.'
+        elif trial_event_type == 'delay':
+            description = 'Time stamps of the beginning of the delay period on each trial.'
+        elif trial_event_type == 'go':
+            description = 'Time stamps of the go cue signal on each trial.'
+
         if len(event_times) > 0:
             event_times = np.hstack(event_times.astype(float) + trial_starts.astype(float))
-            behav_event.create_timeseries(name=trial_event_type, unit='a.u.', conversion=1.0,
-                                          data=np.full_like(event_times, 1),
-                                          timestamps=event_times)
+            behav_event.create_timeseries(
+                name=trial_event_type, unit='a.u.', conversion=1.0,
+                data=np.full_like(event_times, 1),
+                timestamps=event_times,
+                description=description)
 
     # =============== Write NWB 2.0 file ===============
     if save:
@@ -215,4 +232,4 @@ if __name__ == '__main__':
         nwb_outdir = default_nwb_output_dir
 
     for skey in experiment.Session.fetch('KEY'):
-        export_to_nwb(skey, nwb_output_dir=nwb_outdir, save=True)
+        export_to_nwb(skey, nwb_output_dir=nwb_outdir, save=True, overwrite=True)

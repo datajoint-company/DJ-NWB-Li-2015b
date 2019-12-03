@@ -115,7 +115,7 @@ class WaterRestriction(dj.Manual):
 @schema
 class VirusSource(dj.Lookup):
     definition = """
-    virus_source   : varchar(60)
+    virus_source   : varchar(60)   # source of virus
     """
     contents = zip(['Janelia core', 'UPenn', 'Addgene', 'UNC', 'Other'])
 
