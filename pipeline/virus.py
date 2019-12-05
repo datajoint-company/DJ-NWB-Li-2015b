@@ -23,11 +23,11 @@ class Virus(dj.Manual):
 class VirusInjection(dj.Manual):
     definition = """
     -> lab.Subject
-    injection_id: int
+    injection_id: int       # injection number
     ---
     -> Virus
-    injection_date: date
-    injection_volume: float # in nL
+    injection_date: date    # date of injection
+    injection_volume: float # volume of virus, in nL
     virus_dilution=null: float   # 1:X dilution
     -> experiment.BrainLocation
     ml_location=null: float # um from ref ; right is positive; based on manipulator coordinates/reconstructed track
