@@ -146,12 +146,16 @@ def export_to_nwb(session_key, nwb_output_dir=default_nwb_output_dir, save=False
         name='RoiResponseSeries',
         data=roi_traces,
         description='average fluorescence of roi',
-        rois=roi_region, starting_time=starting_time, rate=rate)
+        rois=roi_region,
+        unit='a.u.',
+        starting_time=starting_time, rate=rate)
     roi_fluorescence.create_roi_response_series(
         name='NeuropilResponseSeries',
         data=neuropil_traces,
         description='average fluorescence of the neuropil surrounding the roi',
-        rois=roi_region, starting_time=starting_time, rate=rate)
+        rois=roi_region,
+        unit='a.u.',
+        starting_time=starting_time, rate=rate)
 
     # ===============================================================================
     # =============================== BEHAVIOR TRIALS ===============================
